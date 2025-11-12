@@ -1,0 +1,22 @@
+{
+  "mcp": {
+    "servers": {
+      "figma": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-figma"
+        ],
+        "env": {
+          "FIGMA_PERSONAL_ACCESS_TOKEN": "${FIGMA_PERSONAL_ACCESS_TOKEN}"
+        },
+        "description": "Figma MCP server for accessing design files, components, and generating code from designs"
+      }
+    }
+  },
+  "instructions": [
+    "This is an example file. DO NOT put your actual token here!",
+    "Set FIGMA_PERSONAL_ACCESS_TOKEN as an environment variable instead.",
+    "Or configure directly in Cursor Settings → MCP (token will be encrypted)"
+  ]
+}

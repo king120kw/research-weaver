@@ -1,0 +1,27 @@
+{
+  "imageMappings": [
+    {
+      "source": "C:\\Users\\najib\\OneDrive\\Pictures\\Screenshots\\Screenshot 2025-10-02 222501.png",
+      "destination": "reference-design.png",
+      "category": "design",
+      "description": "Reference design image for the application"
+    },
+    {
+      "source": "C:\\Users\\najib\\OneDrive\\Desktop\\Najib zone\\download (9).png",
+      "destination": "school-image-1.png",
+      "category": "education",
+      "description": "School-related imagery"
+    }
+  ],
+  "assetOrganization": {
+    "recommendedStructure": "Move source images to a dedicated folder structure",
+    "suggestedFolders": [
+      "assets/source-images/",
+      "assets/processed/",
+      "public/images/organized/"
+    ],
+    "namingConvention": "Use descriptive, kebab-case names for better SEO and maintainability"
+  },
+  "version": "1.0.0",
+  "lastUpdated": "2025-10-03T12:31:35.000Z"
+}

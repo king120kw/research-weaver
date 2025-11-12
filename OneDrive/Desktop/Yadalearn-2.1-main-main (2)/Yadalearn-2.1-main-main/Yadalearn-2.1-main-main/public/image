@@ -1,0 +1,35 @@
+# Image Asset Mapping Configuration
+# This file maps source image paths to their intended destinations in the public folder
+# Format: "source_path" => "destination_name"
+#
+# NOTE: This file is deprecated. Please use 'public/image-config.json' for new mappings.
+# The JSON format provides better structure, validation, and maintainability.
+
+# Legacy mappings (consider migrating to JSON format):
+"C:\Users\najib\OneDrive\Desktop\photo_2025-05-17_00-18-08.png" => "teacher-image.png"
+
+# Reference design image
+# "C:\Users\najib\OneDrive\Pictures\Screenshots\Screenshot 2025-10-02 222501.png" => "reference-design.png"
+
+# School-related images
+# "C:\Users\najib\OneDrive\Desktop\Najib zone\download (9).png" => "school-image-1.png"
+
+# ====================================================================================
+# MIGRATION GUIDE: Move to JSON format (public/image-config.json)
+# ====================================================================================
+# Benefits of JSON format:
+# - Better structure and validation
+# - Cross-platform path compatibility
+# - Metadata support (categories, descriptions)
+# - Version control friendly
+# - IDE support and autocomplete
+#
+# Recommended project structure:
+# assets/source-images/     (organized source files)
+# assets/processed/         (processed/optimized images)
+# public/images/organized/  (final public assets)
+#
+# Naming conventions:
+# - Use descriptive, kebab-case names (e.g., teacher-profile.jpg)
+# - Include category prefixes (e.g., school-logo.png, student-avatar.jpg)
+# - Avoid spaces and special characters in filenames
