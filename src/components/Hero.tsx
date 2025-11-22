@@ -1,7 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { FileText, Brain, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Hero = () => {
+  const navigate = useNavigate();
+  
   return (
     <section className="relative overflow-hidden bg-gradient-hero py-24 px-6">
       <div className="container mx-auto max-w-6xl">
@@ -23,13 +26,25 @@ const Hero = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-            <Button size="lg" variant="secondary" className="gap-2 shadow-strong">
+            <Button 
+              size="lg" 
+              variant="secondary" 
+              className="gap-2 shadow-strong"
+              onClick={() => navigate('/chat')}
+            >
               <Brain className="w-5 h-5" />
-              Start Writing
+              Start Conversation
             </Button>
-            <Button size="lg" variant="outline" className="gap-2 bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20">
+            <Button 
+              size="lg" 
+              variant="outline" 
+              className="gap-2 bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20"
+              onClick={() => {
+                document.getElementById('modules')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+            >
               <FileText className="w-5 h-5" />
-              View Documentation
+              Explore Modules
             </Button>
           </div>
         </div>
