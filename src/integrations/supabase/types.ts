@@ -14,7 +14,260 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      chat_conversations: {
+        Row: {
+          accuracy_level: string
+          conversation_memory: Json | null
+          created_at: string
+          depth_level: number
+          id: string
+          project_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accuracy_level?: string
+          conversation_memory?: Json | null
+          created_at?: string
+          depth_level?: number
+          id?: string
+          project_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accuracy_level?: string
+          conversation_memory?: Json | null
+          created_at?: string
+          depth_level?: number
+          id?: string
+          project_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_conversations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "research_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_messages: {
+        Row: {
+          citations: Json | null
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          role: string
+          verification_status: string | null
+        }
+        Insert: {
+          citations?: Json | null
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          role: string
+          verification_status?: string | null
+        }
+        Update: {
+          citations?: Json | null
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          role?: string
+          verification_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          content_text: string | null
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string
+          id: string
+          project_id: string
+          structural_metadata: Json | null
+        }
+        Insert: {
+          content_text?: string | null
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type: string
+          id?: string
+          project_id: string
+          structural_metadata?: Json | null
+        }
+        Update: {
+          content_text?: string | null
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string
+          id?: string
+          project_id?: string
+          structural_metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "research_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      research_projects: {
+        Row: {
+          created_at: string
+          id: string
+          parameters: Json | null
+          project_type: string
+          status: string
+          style_dna: Json | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          parameters?: Json | null
+          project_type: string
+          status?: string
+          style_dna?: Json | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          parameters?: Json | null
+          project_type?: string
+          status?: string
+          style_dna?: Json | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sources: {
+        Row: {
+          authors: string[] | null
+          created_at: string
+          doi: string | null
+          id: string
+          metadata: Json | null
+          project_id: string
+          publication_year: number | null
+          reliability_score: number | null
+          source_type: string
+          title: string
+          url: string | null
+        }
+        Insert: {
+          authors?: string[] | null
+          created_at?: string
+          doi?: string | null
+          id?: string
+          metadata?: Json | null
+          project_id: string
+          publication_year?: number | null
+          reliability_score?: number | null
+          source_type: string
+          title: string
+          url?: string | null
+        }
+        Update: {
+          authors?: string[] | null
+          created_at?: string
+          doi?: string | null
+          id?: string
+          metadata?: Json | null
+          project_id?: string
+          publication_year?: number | null
+          reliability_score?: number | null
+          source_type?: string
+          title?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sources_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "research_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verifications: {
+        Row: {
+          claim_text: string
+          confidence_score: number | null
+          created_at: string
+          id: string
+          project_id: string
+          source_id: string | null
+          verification_status: string
+        }
+        Insert: {
+          claim_text: string
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          project_id: string
+          source_id?: string | null
+          verification_status: string
+        }
+        Update: {
+          claim_text?: string
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          project_id?: string
+          source_id?: string | null
+          verification_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verifications_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "research_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verifications_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
