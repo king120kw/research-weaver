@@ -1,10 +1,20 @@
 import { Button } from "@/components/ui/button";
-import { FileText, Brain, Sparkles } from "lucide-react";
+import { FileText, Brain, Sparkles, LogIn } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Hero = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   
+  const handleGetStarted = () => {
+    if (user) {
+      navigate('/dashboard');
+    } else {
+      navigate('/auth');
+    }
+  };
+
   return (
     <section className="relative overflow-hidden bg-gradient-hero py-24 px-6">
       <div className="container mx-auto max-w-6xl">
@@ -30,10 +40,19 @@ const Hero = () => {
               size="lg" 
               variant="secondary" 
               className="gap-2 shadow-strong"
-              onClick={() => navigate('/chat')}
+              onClick={handleGetStarted}
             >
-              <Brain className="w-5 h-5" />
-              Start Conversation
+              {user ? (
+                <>
+                  <Brain className="w-5 h-5" />
+                  Go to Dashboard
+                </>
+              ) : (
+                <>
+                  <LogIn className="w-5 h-5" />
+                  Get Started
+                </>
+              )}
             </Button>
             <Button 
               size="lg" 
