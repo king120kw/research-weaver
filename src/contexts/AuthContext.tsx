@@ -10,6 +10,7 @@ interface AuthContextType {
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithFacebook: () => Promise<void>;
+  signInAsGuest: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -50,9 +51,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       });
       if (error) throw error;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Google sign in error:', error);
-      toast.error('Failed to sign in with Google');
+      if (error.message?.includes('provider is not enabled')) {
+        toast.error('Google Login is not enabled in Supabase. Please use Guest Login.');
+      } else {
+        toast.error(error.message || 'Failed to sign in with Google');
+      }
     }
   };
 
@@ -65,9 +70,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       });
       if (error) throw error;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Facebook sign in error:', error);
-      toast.error('Failed to sign in with Facebook');
+      if (error.message?.includes('provider is not enabled')) {
+        toast.error('Facebook Login is not enabled in Supabase. Please use Guest Login.');
+      } else {
+        toast.error(error.message || 'Failed to sign in with Facebook');
+      }
+    }
+  };
+
+  const signInAsGuest = async () => {
+    try {
+      // Create a mock user for guest login
+      const mockUser: User = {
+        id: 'guest-user-id',
+        app_metadata: { provider: 'guest' },
+        user_metadata: { full_name: 'Guest User' },
+        aud: 'authenticated',
+        created_at: new Date().toISOString(),
+      } as User;
+
+      setUser(mockUser);
+      toast.success('Signed in as Guest');
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Guest sign in error:', error);
+      toast.error('Failed to sign in as Guest');
     }
   };
 
@@ -75,18 +104,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+
       setUser(null);
       setSession(null);
-      navigate('/');
+      navigate('/'); // Redirect to landing page
       toast.success('Signed out successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Sign out error:', error);
-      toast.error('Failed to sign out');
+      toast.error(error.message || 'Failed to sign out');
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signInWithGoogle, signInWithFacebook, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signInWithGoogle, signInWithFacebook, signInAsGuest, signOut }}>
       {children}
     </AuthContext.Provider>
   );

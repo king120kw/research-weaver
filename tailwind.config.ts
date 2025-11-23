@@ -13,7 +13,12 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        "display": ["Manrope", "sans-serif"]
+      },
       colors: {
+        "background-light": "#F9FAFB",
+        "background-dark": "#121820",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

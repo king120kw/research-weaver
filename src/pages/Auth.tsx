@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2 } from 'lucide-react';
 
 export default function Auth() {
-  const { user, loading, signInWithGoogle, signInWithFacebook } = useAuth();
+  const { user, loading, signInWithGoogle, signInWithFacebook, signInAsGuest } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,14 +24,36 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
-      <Card className="w-full max-w-md shadow-xl border-border/50">
-        <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            Welcome to Research Helper
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4 relative overflow-hidden">
+      {/* Decorative elements */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-primary/5 blur-3xl animate-pulse" />
+        <div className="absolute top-[20%] -right-[10%] w-[40%] h-[40%] rounded-full bg-blue-500/5 blur-3xl animate-pulse delay-1000" />
+      </div>
+
+      <Card className="w-full max-w-md shadow-2xl border-border/50 backdrop-blur-sm bg-background/80 relative z-10">
+        <CardHeader className="space-y-3 text-center pb-8">
+          <div className="mx-auto w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
+            <svg
+              className="w-6 h-6 text-primary"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+              />
+            </svg>
+          </div>
+          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+            Welcome Back
           </CardTitle>
           <CardDescription className="text-base">
-            Sign in to access your research workspace
+            Sign in to your research workspace
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -39,8 +61,9 @@ export default function Auth() {
             onClick={signInWithGoogle}
             variant="outline"
             size="lg"
-            className="w-full h-12 text-base font-medium hover:bg-accent/80 transition-all"
+            className="w-full h-12 text-base font-medium hover:bg-slate-50 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-slate-50 transition-all border-slate-200 dark:border-slate-800 relative group overflow-hidden"
           >
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
             <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
               <path
                 fill="currentColor"
@@ -66,15 +89,25 @@ export default function Auth() {
             onClick={signInWithFacebook}
             variant="outline"
             size="lg"
-            className="w-full h-12 text-base font-medium hover:bg-accent/80 transition-all"
+            className="w-full h-12 text-base font-medium hover:bg-blue-50 hover:text-blue-900 dark:hover:bg-blue-950/30 dark:hover:text-blue-50 transition-all border-slate-200 dark:border-slate-800 relative group overflow-hidden"
           >
-            <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 24 24">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-500/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+            <svg className="w-5 h-5 mr-3 text-[#1877F2]" fill="currentColor" viewBox="0 0 24 24">
               <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
             </svg>
             Continue with Facebook
           </Button>
 
-          <div className="relative">
+          <Button
+            onClick={signInAsGuest}
+            variant="ghost"
+            size="lg"
+            className="w-full h-12 text-base font-medium hover:bg-accent/50 transition-all"
+          >
+            Continue as Guest
+          </Button>
+
+          <div className="relative py-2">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t border-border" />
             </div>
@@ -85,7 +118,7 @@ export default function Auth() {
             </div>
           </div>
 
-          <p className="text-xs text-center text-muted-foreground">
+          <p className="text-xs text-center text-muted-foreground px-4">
             By signing in, you agree to our Terms of Service and Privacy Policy.
             Your data is encrypted and securely stored.
           </p>

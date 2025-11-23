@@ -75,7 +75,7 @@ const Index = () => {
   return (
     <div className="min-h-screen">
       <Hero />
-      
+
       <section className="py-24 px-4 bg-gradient-to-b from-background to-accent/5" id="modules">
         <div className="container mx-auto max-w-7xl">
           <div className="text-center mb-16">
