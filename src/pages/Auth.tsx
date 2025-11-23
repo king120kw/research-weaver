@@ -28,7 +28,7 @@ export default function Auth() {
       <Card className="w-full max-w-md shadow-xl border-border/50">
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            Welcome to AcademicAI
+            Welcome to Research Helper
           </CardTitle>
           <CardDescription className="text-base">
             Sign in to access your research workspace
