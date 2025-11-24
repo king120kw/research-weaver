@@ -1,5 +1,6 @@
 // Search service for fetching real-time, up-to-date information
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { config } from './config';
 
 export interface SearchResult {
     title: string;
@@ -24,14 +25,12 @@ export async function searchRecentSources(
     maxResults: number = 5
 ): Promise<SearchResponse> {
     try {
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-        if (!apiKey) {
+        if (!config.gemini.apiKey) {
             throw new Error('Gemini API key not configured');
         }
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+        const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
         // Use Gemini to search for recent information
         const searchPrompt = `Search for the most recent and up-to-date information about: "${query}". 
@@ -126,14 +125,12 @@ function parseSearchResults(text: string, maxResults: number): SearchResult[] {
  */
 export async function extractResearchTopics(documentText: string): Promise<string[]> {
     try {
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-        if (!apiKey) {
+        if (!config.gemini.apiKey) {
             throw new Error('Gemini API key not configured');
         }
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+        const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
         const prompt = `Analyze this research document and extract 3-5 key topics or concepts that would benefit from recent, up-to-date information:
 
