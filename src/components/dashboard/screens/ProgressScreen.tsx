@@ -1,71 +1,121 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { getDocumentProgress, getUserDocuments, Document } from '@/lib/document-service';
+import { toast } from 'sonner';
 
 interface ProgressScreenProps {
     onNavigate: (screenIndex: number) => void;
 }
 
 export default function ProgressScreen({ onNavigate }: ProgressScreenProps) {
+    const { user } = useAuth();
     const [progress, setProgress] = useState(0);
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [stage, setStage] = useState('Stage 1 of 5: Initializing');
-    const [logs, setLogs] = useState<{ text: string; time: string }[]>([
-        { text: 'Initializing document analysis...', time: 'Just now' }
-    ]);
+    const [isProcessing, setIsProcessing] = useState(true);
+    const [stage, setStage] = useState('Initializing...');
+    const [activeDocId, setActiveDocId] = useState<string | null>(null);
+    const [logs, setLogs] = useState<{ text: string; time: string }[]>([]);
+    const pollingInterval = useRef<NodeJS.Timeout | null>(null);
 
-    const stages = [
-        'Stage 1 of 5: Analyzing document structure',
-        'Stage 2 of 5: Extracting key themes',
-        'Stage 3 of 5: Generating content',
-        'Stage 4 of 5: Verifying sources',
-        'Stage 5 of 5: Finalizing document'
-    ];
-
+    // Find the active document on mount
     useEffect(() => {
-        if (!isProcessing) return;
+        const findActiveDocument = async () => {
+            if (!user?.id) return;
 
-        const interval = setInterval(() => {
-            setProgress(prev => {
-                const newProgress = prev + Math.random() * 5;
-                if (newProgress >= 100) {
-                    clearInterval(interval);
-                    setStage('Processing complete!');
-                    addLog('Document enhancement completed successfully.');
-                    return 100;
+            try {
+                // Get most recent document
+                const docs = await getUserDocuments(user.id);
+                const processingDoc = docs.find(d => d.status === 'processing');
+
+                if (processingDoc) {
+                    setActiveDocId(processingDoc.id);
+                    setStage(processingDoc.processing_stage || 'Processing...');
+                    setProgress(processingDoc.processing_progress || 0);
+                    addLog('Resuming progress tracking...');
+                } else {
+                    // Check for recently completed document (within last minute)
+                    const recentCompleted = docs.find(d =>
+                        d.status === 'completed' &&
+                        d.processed_at &&
+                        new Date(d.processed_at).getTime() > Date.now() - 60000
+                    );
+
+                    if (recentCompleted) {
+                        setActiveDocId(recentCompleted.id);
+                        setStage('Completed');
+                        setProgress(100);
+                        setIsProcessing(false);
+                        addLog('Document processing completed.');
+                    } else {
+                        setIsProcessing(false);
+                        setStage('No active processing');
+                        addLog('No active document found.');
+                    }
                 }
+            } catch (error) {
+                console.error('Error finding active document:', error);
+                toast.error('Failed to load processing status');
+            }
+        };
 
-                const stageIndex = Math.min(Math.floor(newProgress / 20), 4);
-                if (stages[stageIndex] !== stage) {
-                    setStage(stages[stageIndex]);
-                    addLog(stages[stageIndex]);
+        findActiveDocument();
+    }, [user]);
+
+    // Poll for updates
+    useEffect(() => {
+        if (!activeDocId || !isProcessing || !user?.id) return;
+
+        const pollProgress = async () => {
+            try {
+                const status = await getDocumentProgress(activeDocId, user.id);
+
+                if (status) {
+                    if (status.progress !== undefined) setProgress(status.progress);
+                    if (status.stage) setStage(status.stage);
+
+                    // Add log if message changed
+                    if (status.message && logs[0]?.text !== status.message) {
+                        addLog(status.message);
+                    }
+
+                    if (status.status === 'completed') {
+                        setIsProcessing(false);
+                        setProgress(100);
+                        setStage('Processing Complete!');
+                        toast.success('Document processing finished!');
+                        if (pollingInterval.current) clearInterval(pollingInterval.current);
+                    } else if (status.status === 'failed') {
+                        setIsProcessing(false);
+                        setStage('Processing Failed');
+                        toast.error('Document processing failed');
+                        if (pollingInterval.current) clearInterval(pollingInterval.current);
+                    }
                 }
+            } catch (error) {
+                console.error('Error polling progress:', error);
+            }
+        };
 
-                return newProgress;
-            });
-        }, 500);
+        // Poll every 2 seconds
+        pollingInterval.current = setInterval(pollProgress, 2000);
 
-        return () => clearInterval(interval);
-    }, [isProcessing, stage]);
+        // Initial poll
+        pollProgress();
+
+        return () => {
+            if (pollingInterval.current) clearInterval(pollingInterval.current);
+        };
+    }, [activeDocId, isProcessing, user, logs]);
 
     const addLog = (text: string) => {
-        setLogs(prev => [{ text, time: new Date().toLocaleTimeString() }, ...prev.slice(0, 9)]);
-    };
-
-    const startProcessing = () => {
-        setIsProcessing(true);
-        setProgress(0);
-        setLogs([{ text: 'Starting enhancement process...', time: new Date().toLocaleTimeString() }]);
-    };
-
-    const cancelProcessing = () => {
-        if (confirm('Are you sure you want to cancel the enhancement process?')) {
-            setIsProcessing(false);
-            setProgress(0);
-            onNavigate(0); // Go back to dashboard
-        }
+        setLogs(prev => {
+            // Avoid duplicates
+            if (prev.length > 0 && prev[0].text === text) return prev;
+            return [{ text, time: new Date().toLocaleTimeString() }, ...prev.slice(0, 9)];
+        });
     };
 
     return (
-        <div className="flex flex-col h-[calc(100vh-8rem)] bg-white dark:bg-slate-900 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="flex flex-col h-[calc(100vh-2rem)] bg-white dark:bg-slate-900 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm">
             {/* Header */}
             <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-4 bg-white dark:bg-slate-900 z-10">
                 <button
@@ -80,10 +130,10 @@ export default function ProgressScreen({ onNavigate }: ProgressScreenProps) {
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6">
-                <div className="flex flex-col lg:flex-row gap-6 h-full">
+            <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-slate-950/50">
+                <div className="flex flex-col lg:flex-row gap-6 h-full max-w-6xl mx-auto">
                     {/* Main Progress Area */}
-                    <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950/50 rounded-xl p-8">
+                    <div className="flex-1 flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-xl p-8 border border-slate-200 dark:border-slate-800 shadow-sm">
                         <div className="relative w-64 h-64 flex items-center justify-center mb-8">
                             {/* Circular Progress Bar Background */}
                             <svg className="w-full h-full transform -rotate-90">
@@ -94,7 +144,7 @@ export default function ProgressScreen({ onNavigate }: ProgressScreenProps) {
                                     stroke="currentColor"
                                     strokeWidth="12"
                                     fill="transparent"
-                                    className="text-slate-200 dark:text-slate-800"
+                                    className="text-slate-100 dark:text-slate-800"
                                 />
                                 <circle
                                     cx="128"
@@ -114,47 +164,62 @@ export default function ProgressScreen({ onNavigate }: ProgressScreenProps) {
                             </div>
                         </div>
 
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{stage}</h3>
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 text-center">{stage}</h3>
                         <p className="text-slate-500 dark:text-slate-400 text-center max-w-md mb-8">
                             {isProcessing
-                                ? "Our AI is currently analyzing and enhancing your document. This may take a few minutes."
-                                : "Ready to start processing. Click the button below to begin."}
+                                ? "Our AI is analyzing your document, searching for recent sources, and enhancing the content."
+                                : progress === 100
+                                    ? "Document processing complete! You can now view and download your enhanced document."
+                                    : "No active processing task found."}
                         </p>
 
                         <div className="flex gap-4">
-                            {!isProcessing ? (
+                            {!isProcessing && progress === 100 ? (
                                 <button
-                                    onClick={startProcessing}
-                                    className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium"
+                                    onClick={() => onNavigate(1)} // Go back to upload/plan
+                                    className="px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-medium shadow-lg hover:shadow-xl flex items-center gap-2"
                                 >
-                                    Start Processing
+                                    <span className="material-symbols-outlined">upload_file</span>
+                                    Process Another
                                 </button>
+                            ) : isProcessing ? (
+                                <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-lg">
+                                    <span className="material-symbols-outlined animate-spin">sync</span>
+                                    <span>Updating in real-time...</span>
+                                </div>
                             ) : (
                                 <button
-                                    onClick={cancelProcessing}
-                                    className="px-6 py-2 bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors font-medium"
+                                    onClick={() => onNavigate(1)}
+                                    className="px-6 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors font-medium shadow-lg hover:shadow-xl"
                                 >
-                                    Cancel
+                                    Start New Document
                                 </button>
                             )}
                         </div>
                     </div>
 
                     {/* Logs Panel */}
-                    <div className="w-full lg:w-96 flex-shrink-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden flex flex-col">
-                        <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">
+                    <div className="w-full lg:w-96 flex-shrink-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden flex flex-col shadow-sm h-[500px] lg:h-auto">
+                        <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex justify-between items-center">
                             <h3 className="font-bold text-slate-800 dark:text-slate-200">Activity Log</h3>
+                            <span className="text-xs text-slate-500 bg-white dark:bg-slate-900 px-2 py-1 rounded border border-slate-200 dark:border-slate-800">Live</span>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                            {logs.map((log, index) => (
-                                <div key={index} className="flex gap-3 items-start">
-                                    <div className="w-2 h-2 mt-2 rounded-full bg-primary shrink-0"></div>
-                                    <div>
-                                        <p className="text-sm text-slate-700 dark:text-slate-300">{log.text}</p>
-                                        <span className="text-xs text-slate-400">{log.time}</span>
-                                    </div>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                            {logs.length === 0 ? (
+                                <div className="text-center text-slate-400 py-8 text-sm">
+                                    Waiting for updates...
                                 </div>
-                            ))}
+                            ) : (
+                                logs.map((log, index) => (
+                                    <div key={index} className="flex gap-3 items-start animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                        <div className={`w-2 h-2 mt-2 rounded-full shrink-0 ${index === 0 ? 'bg-primary animate-pulse' : 'bg-slate-300 dark:bg-slate-700'}`}></div>
+                                        <div>
+                                            <p className={`text-sm ${index === 0 ? 'text-slate-900 dark:text-white font-medium' : 'text-slate-600 dark:text-slate-400'}`}>{log.text}</p>
+                                            <span className="text-xs text-slate-400">{log.time}</span>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
                 </div>

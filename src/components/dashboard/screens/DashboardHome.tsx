@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface DashboardHomeProps {
@@ -13,9 +12,24 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
     const [uploading, setUploading] = useState(false);
     const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.user_metadata?.avatar_url || null);
     const [activityDays, setActivityDays] = useState<number[]>([]);
+    const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+    const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+
+    // Calendar Todo State
+    const [selectedDate, setSelectedDate] = useState<string | null>(null);
+    const [todos, setTodos] = useState<{ [key: string]: { id: string, text: string, completed: boolean }[] }>(() => {
+        const saved = localStorage.getItem('calendar_todos');
+        return saved ? JSON.parse(saved) : {};
+    });
+    const [newTodoText, setNewTodoText] = useState('');
+    const [showTodoModal, setShowTodoModal] = useState(false);
 
     useEffect(() => {
-        if (user?.user_metadata?.avatar_url) {
+        // Load avatar from localStorage first, then fallback to user metadata
+        const savedAvatar = localStorage.getItem('user_avatar');
+        if (savedAvatar) {
+            setAvatarUrl(savedAvatar);
+        } else if (user?.user_metadata?.avatar_url) {
             setAvatarUrl(user.user_metadata.avatar_url);
         }
         // Fetch user activity data
@@ -34,6 +48,60 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
         }
     };
 
+    // Calendar Todo Functions
+    const handleDayClick = (day: number) => {
+        const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        setSelectedDate(dateStr);
+        setShowTodoModal(true);
+    };
+
+    const addTodo = () => {
+        if (!selectedDate || !newTodoText.trim()) return;
+
+        const newTodo = {
+            id: Date.now().toString(),
+            text: newTodoText.trim(),
+            completed: false
+        };
+
+        const updatedTodos = {
+            ...todos,
+            [selectedDate]: [...(todos[selectedDate] || []), newTodo]
+        };
+
+        setTodos(updatedTodos);
+        localStorage.setItem('calendar_todos', JSON.stringify(updatedTodos));
+        setNewTodoText('');
+        toast.success('Todo added!');
+    };
+
+    const toggleTodo = (todoId: string) => {
+        if (!selectedDate) return;
+
+        const updatedTodos = {
+            ...todos,
+            [selectedDate]: todos[selectedDate].map(todo =>
+                todo.id === todoId ? { ...todo, completed: !todo.completed } : todo
+            )
+        };
+
+        setTodos(updatedTodos);
+        localStorage.setItem('calendar_todos', JSON.stringify(updatedTodos));
+    };
+
+    const deleteTodo = (todoId: string) => {
+        if (!selectedDate) return;
+
+        const updatedTodos = {
+            ...todos,
+            [selectedDate]: todos[selectedDate].filter(todo => todo.id !== todoId)
+        };
+
+        setTodos(updatedTodos);
+        localStorage.setItem('calendar_todos', JSON.stringify(updatedTodos));
+        toast.success('Todo deleted!');
+    };
+
     const handleProfileClick = () => {
         fileInputRef.current?.click();
     };
@@ -46,33 +114,32 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
             }
 
             const file = event.target.files[0];
-            const fileExt = file.name.split('.').pop();
-            const filePath = `${user?.id}-${Math.random()}.${fileExt}`;
 
-            const { error: uploadError } = await supabase.storage
-                .from('avatars')
-                .upload(filePath, file);
-
-            if (uploadError) {
-                throw uploadError;
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                throw new Error('Please select an image file');
             }
 
-            const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-            const publicUrl = data.publicUrl;
-
-            const { error: updateError } = await supabase.auth.updateUser({
-                data: { avatar_url: publicUrl }
-            });
-
-            if (updateError) {
-                throw updateError;
+            // Validate file size (max 2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                throw new Error('Image size must be less than 2MB');
             }
 
-            setAvatarUrl(publicUrl);
-            toast.success('Profile picture updated!');
+            // Convert to base64 and store in localStorage
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64String = reader.result as string;
+                localStorage.setItem('user_avatar', base64String);
+                setAvatarUrl(base64String);
+                toast.success('Profile picture updated!');
+                setUploading(false);
+            };
+            reader.onerror = () => {
+                throw new Error('Failed to read image file');
+            };
+            reader.readAsDataURL(file);
         } catch (error: any) {
             toast.error(error.message);
-        } finally {
             setUploading(false);
         }
     };
@@ -80,8 +147,6 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
     const renderCalendarDays = () => {
         const days = [];
         const today = new Date();
-        const currentMonth = today.getMonth();
-        const currentYear = today.getFullYear();
         const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
         const firstDay = new Date(currentYear, currentMonth, 1).getDay();
 
@@ -98,21 +163,29 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
 
         // Add days of current month
         for (let i = 1; i <= daysInMonth; i++) {
-            const isToday = i === today.getDate();
-            const hasActivity = activityDays.includes(i);
+            const isToday = i === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear();
+            const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+            const hasTodos = todos[dateStr] && todos[dateStr].length > 0;
 
             days.push(
-                <div
+                <button
                     key={i}
-                    className={`w-10 h-10 flex items-center justify-center rounded-full text-sm ${isToday
-                            ? 'bg-blue-500 text-white font-bold ring-2 ring-blue-300 dark:ring-blue-700'
-                            : hasActivity
-                                ? 'bg-blue-100 dark:bg-blue-900/50'
-                                : ''
+                    onClick={() => handleDayClick(i)}
+                    className={`w-10 h-10 flex items-center justify-center rounded-full text-sm relative transition-all cursor-pointer hover:ring-2 hover:ring-primary/50 group ${isToday
+                        ? 'bg-blue-500 text-white font-bold ring-2 ring-blue-300 dark:ring-blue-700'
+                        : hasTodos
+                            ? 'bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-900'
+                            : 'hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                 >
                     {i}
-                </div>
+                    <span className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 w-4 h-4 bg-primary text-white rounded-full flex items-center justify-center text-[10px] transition-opacity shadow-sm z-10">
+                        <span className="material-symbols-outlined text-[10px]">add</span>
+                    </span>
+                    {hasTodos && (
+                        <span className="absolute bottom-0.5 w-1.5 h-1.5 bg-primary rounded-full"></span>
+                    )}
+                </button>
             );
         }
 
@@ -121,8 +194,32 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
 
     const monthNames = ["January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"];
-    const currentDate = new Date();
-    const currentMonthYear = `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+
+    const goToPreviousMonth = () => {
+        if (currentMonth === 0) {
+            setCurrentMonth(11);
+            setCurrentYear(currentYear - 1);
+        } else {
+            setCurrentMonth(currentMonth - 1);
+        }
+    };
+
+    const goToNextMonth = () => {
+        if (currentMonth === 11) {
+            setCurrentMonth(0);
+            setCurrentYear(currentYear + 1);
+        } else {
+            setCurrentMonth(currentMonth + 1);
+        }
+    };
+
+    const goToToday = () => {
+        const today = new Date();
+        setCurrentMonth(today.getMonth());
+        setCurrentYear(today.getFullYear());
+    };
+
+    const currentMonthYear = `${monthNames[currentMonth]} ${currentYear}`;
 
     return (
         <main className="flex-1 p-4 md:p-8 lg:p-12">
@@ -199,13 +296,37 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">Activity Calendar</h3>
                         <div className="flex items-center gap-2">
-                            <button className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400">
+                            <button
+                                onClick={() => {
+                                    const today = new Date();
+                                    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                                    setSelectedDate(dateStr);
+                                    setShowTodoModal(true);
+                                }}
+                                className="p-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors mr-2 shadow-sm"
+                                title="Add task for today"
+                            >
+                                <span className="material-symbols-outlined text-sm">add</span>
+                            </button>
+                            <button
+                                onClick={goToPreviousMonth}
+                                className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400"
+                            >
                                 <span className="material-symbols-outlined">chevron_left</span>
                             </button>
-                            <span className="text-base font-semibold text-slate-700 dark:text-slate-300">
+                            <button
+                                onClick={goToToday}
+                                className="px-3 py-1 text-sm font-medium rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
+                            >
+                                Today
+                            </button>
+                            <span className="text-base font-semibold text-slate-700 dark:text-slate-300 min-w-[140px] text-center">
                                 {currentMonthYear}
                             </span>
-                            <button className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400">
+                            <button
+                                onClick={goToNextMonth}
+                                className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400"
+                            >
                                 <span className="material-symbols-outlined">chevron_right</span>
                             </button>
                         </div>
@@ -222,6 +343,73 @@ export default function DashboardHome({ onNavigate }: DashboardHomeProps) {
                     </div>
                 </section>
             </div>
+
+            {/* Todo Modal */}
+            {showTodoModal && selectedDate && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowTodoModal(false)}>
+                    <div className="bg-white dark:bg-slate-900 rounded-xl p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                                Tasks for {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                            </h3>
+                            <button onClick={() => setShowTodoModal(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+                                <span className="material-symbols-outlined text-slate-500">close</span>
+                            </button>
+                        </div>
+
+                        {/* Add Todo Input */}
+                        <div className="flex gap-2 mb-4">
+                            <input
+                                type="text"
+                                value={newTodoText}
+                                onChange={(e) => setNewTodoText(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && addTodo()}
+                                placeholder="Add a new task..."
+                                className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                            />
+                            <button
+                                onClick={addTodo}
+                                disabled={!newTodoText.trim()}
+                                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                            >
+                                Add
+                            </button>
+                        </div>
+
+                        {/* Todo List */}
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                            {todos[selectedDate] && todos[selectedDate].length > 0 ? (
+                                todos[selectedDate].map(todo => (
+                                    <div
+                                        key={todo.id}
+                                        className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg group"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={todo.completed}
+                                            onChange={() => toggleTodo(todo.id)}
+                                            className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary"
+                                        />
+                                        <span className={`flex-1 text-sm ${todo.completed ? 'line-through text-slate-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                                            {todo.text}
+                                        </span>
+                                        <button
+                                            onClick={() => deleteTodo(todo.id)}
+                                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-opacity"
+                                        >
+                                            <span className="material-symbols-outlined text-red-500 text-sm">delete</span>
+                                        </button>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-center text-slate-500 dark:text-slate-400 py-8">
+                                    No tasks for this day. Add one above!
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }
