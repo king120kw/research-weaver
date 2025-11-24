@@ -30,7 +30,7 @@ export async function searchRecentSources(
         }
 
         const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
         // Use Gemini to search for recent information
         const searchPrompt = `Search for the most recent and up-to-date information about: "${query}". 

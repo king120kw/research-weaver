@@ -5,8 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 interface AuthContextType {
-  user: any; // Clerk user resource
-  session: any; // Clerk session
+  user: any;
+  session: any;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithFacebook: () => Promise<void>;
@@ -24,39 +24,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
 
+  // Sync Clerk session with Supabase (optional)
+  useEffect(() => {
+    const syncSupabaseSession = async () => {
+      if (!session || !isSessionLoaded) return;
+
+      try {
+        const supabaseToken = await session.getToken({ template: 'supabase' });
+
+        if (supabaseToken) {
+          await supabase.auth.setSession({
+            access_token: supabaseToken,
+            refresh_token: supabaseToken,
+          });
+        }
+      } catch (error: any) {
+        // Silently fail if JWT template doesn't exist
+        if (!error.message?.includes('No JWT template')) {
+          console.warn('Supabase sync skipped:', error.message);
+        }
+      }
+    };
+
+    syncSupabaseSession();
+  }, [session, isSessionLoaded]);
+
   useEffect(() => {
     if (isUserLoaded && isSessionLoaded) {
       setLoading(false);
     }
   }, [isUserLoaded, isSessionLoaded]);
 
-  // Sync Clerk session with Supabase
-  useEffect(() => {
-    const syncSupabase = async () => {
-      if (session) {
-        try {
-          const token = await session.getToken({ template: 'supabase' });
-          if (token) {
-            await supabase.auth.setSession({
-              access_token: token,
-              refresh_token: '',
-            });
-          }
-        } catch (error) {
-          console.error('Error syncing Supabase session:', error);
-        }
-      } else {
-        await supabase.auth.signOut();
-      }
-    };
-
-    syncSupabase();
-  }, [session]);
-
   const signInWithGoogle = async () => {
     try {
       if (!signIn) return;
-      // authenticateWithRedirect handles both sign-in and sign-up automatically
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_google',
         redirectUrl: '/sso-callback',

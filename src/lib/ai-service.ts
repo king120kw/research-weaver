@@ -42,8 +42,8 @@ export async function sendChatMessage(
       throw new Error('Google Gemini AI is not configured. Please check your API key.');
     }
 
-    // Use Gemini 2.0 Flash model
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    // Use Gemini 1.5 Flash model (better free tier limits)
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     // Build context-aware system prompt
     const systemPrompt = buildSystemPrompt(userContext);
@@ -134,7 +134,7 @@ export async function analyzeDocument(
       throw new Error('Google Gemini AI is not configured.');
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     // Step 1: Extract research topics (20%)
     onProgress?.('analyzing', 20, 'Extracting key research topics...');
@@ -205,7 +205,7 @@ export async function generateResearchPlan(
       throw new Error('Google Gemini AI is not configured.');
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const prompt = `Create a detailed research plan for a ${documentType} on the topic: "${topic}"
 
@@ -242,7 +242,7 @@ export async function extractInsights(content: string): Promise<{
       throw new Error('Google Gemini AI is not configured.');
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const prompt = `Analyze the following document and provide:
 1. A concise summary (2-3 sentences)
