@@ -49,15 +49,17 @@ serve(async (req) => {
     systemPrompt += "\n\nIMPORTANT: You are helpful, accurate, and can answer ANY type of user question - research, general knowledge, practical advice, recipes, directions, how-to guides, etc. Always provide accurate information and engage naturally with the user.";
 
     // Build messages array for Google Gemini API
+    // Gemini expects the first content to be a user message. Place the latest user message first,
+    // then include prior conversation history to preserve context.
     const contents = [
-      ...conversationHistory.map((msg: any) => ({
-        role: msg.role === "assistant" ? "model" : "user",
-        parts: [{ text: msg.content }],
-      })),
       {
         role: "user",
         parts: [{ text: message }],
       },
+      ...conversationHistory.map((msg: any) => ({
+        role: msg.role === "assistant" ? "model" : "user",
+        parts: [{ text: msg.content }],
+      })),
     ];
 
     console.log("Calling Google Gemini API with depth level:", depthLevel);
