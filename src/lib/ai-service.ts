@@ -42,41 +42,49 @@ export async function sendChatMessage(
       throw new Error('Google Gemini AI is not configured. Please check your API key.');
     }
 
-    // Use Gemini 1.5 Flash model (better free tier limits)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    // Use Gemini 1.5 Pro for better intelligence and reasoning (not Flash)
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-1.5-pro',
+      generationConfig: {
+        maxOutputTokens: 4096,
+        temperature: 0.7,
+        topP: 0.95,
+        topK: 40,
+      }
+    });
 
     // Build context-aware system prompt
     const systemPrompt = buildSystemPrompt(userContext);
 
-    // Get the latest user message
-    const userMessage = messages[messages.length - 1];
-
-    // Build chat history - EXCLUDE the welcome message and last user message
+    // Filter and format conversation history properly
     const conversationHistory = messages
-      .slice(0, -1)
-      .filter(msg => !msg.content.includes("Hello! I'm your AI assistant"))
+      .slice(0, -1) // Exclude the last user message (will be sent separately)
+      .filter(msg => msg.content && msg.content.trim().length > 0) // Filter out empty messages
       .map(msg => ({
         role: msg.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: msg.content }],
       }));
 
-    // Start chat with history
+    // Get the latest user message
+    const userMessage = messages[messages.length - 1];
+    if (!userMessage || userMessage.role !== 'user') {
+      throw new Error('Invalid message format');
+    }
+
+    // Start chat with full history for context awareness
     const chat = model.startChat({
       history: conversationHistory,
       generationConfig: {
-        maxOutputTokens: 2048,
+        maxOutputTokens: 4096,
         temperature: 0.7,
-        topP: 0.8,
+        topP: 0.95,
         topK: 40,
       },
+      systemInstruction: systemPrompt, // Add system instruction for better control
     });
 
-    // Send message with system context (only on first message)
-    const fullPrompt = conversationHistory.length === 0
-      ? systemPrompt + '\n\nUser: ' + userMessage.content
-      : userMessage.content;
-
-    const result = await chat.sendMessage(fullPrompt);
+    // Send the user's message
+    const result = await chat.sendMessage(userMessage.content);
     const response = await result.response;
     const text = response.text();
 
@@ -91,6 +99,8 @@ export async function sendChatMessage(
       throw new Error('Invalid API key. Please check your Google Gemini API configuration.');
     } else if (error.message?.includes('quota')) {
       throw new Error('API quota exceeded. Please try again later.');
+    } else if (error.message?.includes('Resource has been exhausted')) {
+      throw new Error('Rate limit exceeded. Please wait a moment before trying again.');
     } else {
       throw new Error('Failed to get AI response. Please try again.');
     }
@@ -98,22 +108,46 @@ export async function sendChatMessage(
 }
 
 function buildSystemPrompt(userContext?: UserContext): string {
-  let prompt = `You are an intelligent research assistant with expertise in academic research, writing, and general knowledge. You can help with:
+  const currentYear = new Date().getFullYear();
+  let prompt = `You are an expert, highly intelligent research assistant with deep expertise across multiple domains:
 
-1. Research Planning & Methodology
+EXPERTISE AREAS:
+1. Academic Research & Methodology
 2. Literature Reviews & Source Analysis
-3. Academic Writing & Citations
+3. Academic Writing & Citations (APA, MLA, Chicago, Harvard)
 4. Data Analysis & Statistics
-5. General Questions (recipes, directions, information, etc.)
+5. General Knowledge (recipes, directions, science, history, culture, technology, etc.)
+6. Problem-solving & Creative thinking
+7. Technical explanations & coding
+8. Business & Professional writing
 
-You provide accurate, well-structured, and helpful responses. When users ask general questions outside of research (like recipes or directions), you answer them naturally and helpfully.`;
+CORE PRINCIPLES:
+- Provide ACCURATE, FACTUAL, and UP-TO-DATE information (current year: ${currentYear})
+- If you're unsure about something, clearly state your uncertainty
+- For any claims, provide context or sources when relevant
+- Adapt your response style to the user's needs (technical, casual, formal, etc.)
+- Engage naturally with follow-up questions and nuance
+- For general questions (recipes, directions, how-to guides), answer comprehensively and helpfully
+- Never refuse reasonable requests - be helpful and thorough
+- Maintain conversation context and remember previous exchanges
+- Provide detailed, well-reasoned responses that go beyond surface-level answers
+
+RESPONSE GUIDELINES:
+- For research: Cite sources, provide citations, explain methodologies
+- For general questions: Give complete answers with practical details
+- Always be accurate and verify your knowledge
+- Engage naturally with conversation flow
+- Provide examples when helpful
+- Ask clarifying questions if needed
+
+You are speaking with a user who values intelligence and accuracy.`;
 
   if (userContext) {
     if (userContext.userName) {
-      prompt += `\n\nYou are currently assisting ${userContext.userName}.`;
+      prompt += `\n\nYou are assisting ${userContext.userName}.`;
     }
     if (userContext.recentDocuments && userContext.recentDocuments.length > 0) {
-      prompt += `\n\nThe user has recently worked on these documents: ${userContext.recentDocuments.join(', ')}.`;
+      prompt += `\n\nThe user has recently worked on: ${userContext.recentDocuments.join(', ')}. You can reference this context in your responses.`;
     }
   }
 

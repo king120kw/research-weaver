@@ -21,6 +21,8 @@ export default function ResearchPlan({ onNavigate }: ResearchPlanProps) {
     const [pageCount, setPageCount] = useState(10);
     const [outputFormat, setOutputFormat] = useState<'pdf' | 'docx' | 'txt'>('pdf');
     const [documentType, setDocumentType] = useState('research-paper');
+    const [aiFocusAreas, setAiFocusAreas] = useState<string[]>([]);
+    const [customFocusInput, setCustomFocusInput] = useState('');
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
@@ -55,11 +57,12 @@ export default function ResearchPlan({ onNavigate }: ResearchPlanProps) {
             const doc = await uploadDocument(selectedFile, user.id, {
                 pageCount,
                 outputFormat,
-                documentType
+                documentType,
+                aiFocusAreas: aiFocusAreas.length > 0 ? aiFocusAreas : undefined
             });
 
             setUploadedDocId(doc.id);
-            toast.success('Upload complete! Starting analysis...');
+            toast.success('Upload complete! Starting AI processing...');
 
             // Auto-start processing
             setProcessing(true);
@@ -228,6 +231,97 @@ export default function ResearchPlan({ onNavigate }: ResearchPlanProps) {
                                 <option value="technical-report">Technical Report</option>
                                 <option value="white-paper">White Paper</option>
                             </select>
+                        </div>
+
+                        {/* AI Focus Areas (Optional) */}
+                        <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                                AI Focus Areas <span className="text-xs text-slate-500 font-normal">(Optional)</span>
+                            </label>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                                Tell the AI what specific areas to focus on when improving your document
+                            </p>
+
+                            {/* Preset Options */}
+                            <div className="grid grid-cols-2 gap-3 mb-4">
+                                {[
+                                    { id: 'clarity', label: '✨ Clarity & Readability' },
+                                    { id: 'accuracy', label: '✓ Accuracy & Facts' },
+                                    { id: 'structure', label: '📋 Structure & Organization' },
+                                    { id: 'citations', label: '📚 Citations & References' },
+                                    { id: 'depth', label: '🔍 Academic Depth' },
+                                    { id: 'examples', label: '💡 Examples & Evidence' }
+                                ].map(area => (
+                                    <button
+                                        key={area.id}
+                                        onClick={() => {
+                                            if (aiFocusAreas.includes(area.id)) {
+                                                setAiFocusAreas(aiFocusAreas.filter(a => a !== area.id));
+                                            } else {
+                                                setAiFocusAreas([...aiFocusAreas, area.id]);
+                                            }
+                                        }}
+                                        disabled={uploading || processing}
+                                        className={`p-3 rounded-lg border-2 transition-all text-sm ${
+                                            aiFocusAreas.includes(area.id)
+                                                ? 'border-primary bg-primary/10 text-primary font-semibold'
+                                                : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-primary/50'
+                                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                    >
+                                        {area.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Custom Focus Input */}
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="Add custom focus area..."
+                                    value={customFocusInput}
+                                    onChange={(e) => setCustomFocusInput(e.target.value)}
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter' && customFocusInput.trim()) {
+                                            setAiFocusAreas([...aiFocusAreas, customFocusInput]);
+                                            setCustomFocusInput('');
+                                        }
+                                    }}
+                                    disabled={uploading || processing}
+                                    className="flex-1 p-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                                />
+                                <button
+                                    onClick={() => {
+                                        if (customFocusInput.trim()) {
+                                            setAiFocusAreas([...aiFocusAreas, customFocusInput]);
+                                            setCustomFocusInput('');
+                                        }
+                                    }}
+                                    disabled={!customFocusInput.trim() || uploading || processing}
+                                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                >
+                                    Add
+                                </button>
+                            </div>
+
+                            {/* Display selected focus areas */}
+                            {aiFocusAreas.length > 0 && (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    {aiFocusAreas.map(area => (
+                                        <div
+                                            key={area}
+                                            className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-medium"
+                                        >
+                                            {area}
+                                            <button
+                                                onClick={() => setAiFocusAreas(aiFocusAreas.filter(a => a !== area))}
+                                                className="text-primary/60 hover:text-primary ml-1"
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
 

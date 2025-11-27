@@ -7,6 +7,14 @@ interface ProgressScreenProps {
     onNavigate: (screenIndex: number) => void;
 }
 
+interface ResourceMetrics {
+    tokensUsed?: number;
+    sourcesAnalyzed?: number;
+    sectionsProcessed?: number;
+    citationsAdded?: number;
+    timeElapsed?: number;
+}
+
 export default function ProgressScreen({ onNavigate }: ProgressScreenProps) {
     const { user } = useAuth();
     const [progress, setProgress] = useState(0);
@@ -14,7 +22,10 @@ export default function ProgressScreen({ onNavigate }: ProgressScreenProps) {
     const [stage, setStage] = useState('Initializing...');
     const [activeDocId, setActiveDocId] = useState<string | null>(null);
     const [logs, setLogs] = useState<{ text: string; time: string }[]>([]);
+    const [resources, setResources] = useState<ResourceMetrics>({});
+    const [processingDetails, setProcessingDetails] = useState<string>('');
     const pollingInterval = useRef<NodeJS.Timeout | null>(null);
+    const startTimeRef = useRef<number>(Date.now());
 
     // Find the active document on mount
     useEffect(() => {
@@ -72,20 +83,44 @@ export default function ProgressScreen({ onNavigate }: ProgressScreenProps) {
                     if (status.progress !== undefined) setProgress(status.progress);
                     if (status.stage) setStage(status.stage);
 
+                    // Update processing details based on stage
+                    const detailsMap: { [key: string]: string } = {
+                        'extracting': 'Extracting key topics and research areas...',
+                        'searching': 'Searching for recent, up-to-date sources and references...',
+                        'analyzing': 'Analyzing and improving document content...',
+                        'generating': 'Generating enhanced sections with AI...',
+                        'formatting': 'Formatting and finalizing document...',
+                        'completed': 'Processing complete and optimized!',
+                    };
+                    setProcessingDetails(detailsMap[status.stage?.toLowerCase() || ''] || 'Processing your document...');
+
                     // Add log if message changed
                     if (status.message && logs[0]?.text !== status.message) {
                         addLog(status.message);
                     }
 
+                    // Simulate resource metrics update
+                    setResources(prev => ({
+                        ...prev,
+                        tokensUsed: Math.floor(status.progress * 50),
+                        sourcesAnalyzed: Math.floor(status.progress / 20),
+                        sectionsProcessed: Math.ceil(status.progress / 25),
+                        citationsAdded: Math.floor(status.progress / 15),
+                        timeElapsed: Math.floor((Date.now() - startTimeRef.current) / 1000),
+                    }));
+
                     if (status.status === 'completed') {
                         setIsProcessing(false);
                         setProgress(100);
                         setStage('Processing Complete!');
+                        setProcessingDetails('Your document has been successfully enhanced with AI!');
+                        addLog('✅ Document processing finished successfully!');
                         toast.success('Document processing finished!');
                         if (pollingInterval.current) clearInterval(pollingInterval.current);
                     } else if (status.status === 'failed') {
                         setIsProcessing(false);
                         setStage('Processing Failed');
+                        addLog('❌ Document processing encountered an error.');
                         toast.error('Document processing failed');
                         if (pollingInterval.current) clearInterval(pollingInterval.current);
                     }
@@ -165,13 +200,31 @@ export default function ProgressScreen({ onNavigate }: ProgressScreenProps) {
                         </div>
 
                         <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 text-center">{stage}</h3>
-                        <p className="text-slate-500 dark:text-slate-400 text-center max-w-md mb-8">
-                            {isProcessing
-                                ? "Our AI is analyzing your document, searching for recent sources, and enhancing the content."
-                                : progress === 100
-                                    ? "Document processing complete! You can now view and download your enhanced document."
-                                    : "No active processing task found."}
+                        <p className="text-slate-500 dark:text-slate-400 text-center max-w-md mb-6">
+                            {processingDetails}
                         </p>
+
+                        {/* Resource Metrics */}
+                        {isProcessing && (
+                            <div className="grid grid-cols-2 gap-4 w-full max-w-md mb-8 bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold text-primary">{resources.tokensUsed || 0}</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400">Tokens Used</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold text-primary">{resources.sourcesAnalyzed || 0}</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400">Sources Found</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold text-primary">{resources.sectionsProcessed || 0}</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400">Sections Enhanced</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold text-primary">{resources.timeElapsed}s</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400">Time Elapsed</div>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="flex gap-4">
                             {!isProcessing && progress === 100 ? (

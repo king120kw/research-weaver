@@ -25,7 +25,7 @@ export default function Chat() {
     {
       id: "1",
       role: "assistant",
-      content: "Hello! I'm your AI research assistant with strict accuracy protocols. I can help you with research questions, methodology design, and content generation. Every claim I make is backed by verified sources, and I'll explicitly state when information cannot be verified. How can I assist you today?",
+      content: "👋 Hello! I'm your intelligent research and knowledge assistant. I can help you with:\n\n📚 **Research & Academia**: Write papers, analyze sources, create citations\n🧠 **General Knowledge**: Answer questions on any topic - science, history, culture, technology\n📋 **Practical Advice**: Recipes, directions, how-to guides, problem-solving\n💬 **Conversation**: Follow up on previous topics, nuanced discussions\n\nI'm always learning from our conversation, so feel free to ask follow-up questions or give me specific instructions on what you'd like me to focus on. What can I help you with today?",
       verification_status: "verified",
     },
   ]);
@@ -146,9 +146,11 @@ export default function Chat() {
         setConversationId(currentConvId);
       }
 
+      // Send message along with full conversation history for context
       const { data, error } = await supabase.functions.invoke("chat", {
         body: {
           message: input,
+          messages: messages.concat(userMessage), // Send full conversation history
           depthLevel: depthLevel,
           conversationId: currentConvId,
         },
@@ -161,37 +163,61 @@ export default function Chat() {
       if (data.rateLimited) {
         toast({
           title: "Rate Limit Exceeded",
-          description: "Please try again in a moment.",
+          description: "Please wait a moment and try again.",
           variant: "destructive",
         });
+        // Remove the optimistic user message on error
+        setMessages((prev) => prev.slice(0, -1));
         setIsLoading(false);
         return;
       }
 
       if (data.paymentRequired) {
         toast({
-          title: "Payment Required",
-          description: "Please add credits to your workspace.",
+          title: "Upgrade Required",
+          description: "Subscribe to continue using the AI assistant.",
           variant: "destructive",
         });
+        setMessages((prev) => prev.slice(0, -1));
         setIsLoading(false);
         return;
       }
 
+      // Ensure we have a valid response
+      const responseText = data.response || data.message || data.fallback || "I couldn't generate a response. Please try again.";
+
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: data.response || data.fallback,
+        content: responseText,
         verification_status: data.verification_status || "verified",
       };
 
+      // Save message to database
+      if (currentConvId && user) {
+        await supabase
+          .from('chat_messages')
+          .insert({
+            conversation_id: currentConvId,
+            user_id: user.id,
+            role: 'assistant',
+            content: responseText,
+            verification_status: data.verification_status || 'verified'
+          });
+      }
+
       setMessages((prev) => [...prev, aiMessage]);
       setIsLoading(false);
+
+      // Auto-scroll to bottom
+      setTimeout(() => scrollToBottom(), 100);
     } catch (error) {
       console.error("Chat error:", error);
+      // Remove the optimistic message on error
+      setMessages((prev) => prev.slice(0, -1));
       toast({
         title: "Error",
-        description: "Failed to send message. Please try again.",
+        description: "Failed to get response. Please try again.",
         variant: "destructive",
       });
       setIsLoading(false);
